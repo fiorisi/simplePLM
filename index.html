@@ -1114,7 +1114,7 @@
         function renderConfigBanner() {
             return `
                 <div class="alert alert-warning">
-                    <span class="alert-icon">âš™ï¸</span>
+                    <span class="alert-icon">&#9881;</span>
                     <div>
                         <strong>Setup Required</strong><br>
                         Please configure the Excel file URL in the code before using this application. See the README for instructions.
@@ -1138,7 +1138,7 @@
             if (appData.error) {
                 return `
                     <div class="alert alert-warning">
-                        <span class="alert-icon">âš ï¸</span>
+                        <span class="alert-icon">&#9888;</span>
                         <div><strong>Error:</strong> ${appData.error}</div>
                     </div>
                 `;
@@ -1168,7 +1168,7 @@
             return `
                 <div class="controls">
                     <div class="search-container">
-                        <span class="search-icon">ðŸ”</span>
+                        <span class="search-icon">&#128269;</span>
                         <input 
                             type="text" 
                             class="search-box" 
@@ -1178,13 +1178,13 @@
                         >
                     </div>
                     <button class="btn btn-secondary" id="refresh-btn">
-                        ðŸ”„ Refresh
+                        &#128260; Refresh
                     </button>
                     <button class="btn btn-import" id="import-btn">
-                        ðŸ“¥ Import BOM
+                        &#128229; Import BOM
                     </button>
                     <button class="btn btn-download" id="download-btn">
-                        ðŸ’¾ Download Excel
+                        &#128190; Download Excel
                     </button>
                 </div>
                 <input type="file" id="bom-file-input" accept=".1,.bom.1" style="display:none">
@@ -1204,7 +1204,7 @@
                 return `
                     <div class="content-card">
                         <div class="loading">
-                            <div style="font-size: 4rem; margin-bottom: 1rem;">ðŸ“¦</div>
+<div style="font-size: 4rem; margin-bottom: 1rem;">&#128230;</div>
                             <p>No items found</p>
                         </div>
                     </div>
@@ -1247,7 +1247,7 @@
                 return `
                     <div class="content-card">
                         <div class="loading">
-                            <div style="font-size: 4rem; margin-bottom: 1rem;">ðŸ“‹</div>
+<div style="font-size: 4rem; margin-bottom: 1rem;">&#128203;</div>
                             <p>No BOMs found</p>
                         </div>
                     </div>
@@ -1316,7 +1316,7 @@
                     <div class="modal">
                         <div class="modal-header">
                             <h2>Import BOM: ${bomCode}</h2>
-                            <button class="close-btn" onclick="closeImportModal()">Ã—</button>
+                            <button class="close-btn" onclick="closeImportModal()">×</button>
                         </div>
                         <div class="modal-body">
                             <div class="bom-info">
@@ -1326,7 +1326,7 @@
 
                             ${replacingExisting ? `
                                 <div class="alert alert-warning">
-                                    <span class="alert-icon">ðŸ”„</span>
+                                    <span class="alert-icon">&#128260;</span>
                                     <div>
                                         <strong>Replacing Existing BOM</strong><br>
                                         This will replace the existing BOM "${bomCode}" in your database with the new version from this file.
@@ -1351,7 +1351,7 @@
 
                             ${conflictCount > 0 ? `
                                 <div class="alert alert-warning">
-                                    <span class="alert-icon">âš ï¸</span>
+                                    <span class="alert-icon">&#9888;</span>
                                     <div>
                                         <strong>Revision Conflicts Detected</strong><br>
                                         Some items have different revisions than what's in your database. 
