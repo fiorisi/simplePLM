@@ -594,14 +594,26 @@
 
         // Parse .bom.1 file
         function parseBOM1File(content) {
+            // Remove UTF-8 BOM if present
+            if (content.charCodeAt(0) === 0xFEFF) {
+                content = content.substring(1);
+            }
+            
             const lines = content.split('\n');
             let bomCode = '';
             let bomDescription = '';
             let inSummary = false;
+            let skipNextLines = 0;
             const items = [];
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
+
+                // Skip lines if we're told to (header/separator lines after SUMMARY)
+                if (skipNextLines > 0) {
+                    skipNextLines--;
+                    continue;
+                }
 
                 // Extract BOM code and description from the Assembly line
                 if (line.includes('Assembly :') && !bomCode) {
@@ -615,12 +627,17 @@
                 // Check if we've reached the SUMMARY section
                 if (line.trim() === 'SUMMARY') {
                     inSummary = true;
-                    i += 2; // Skip the header line
+                    skipNextLines = 2; // Skip blank line and header line with dashes
                     continue;
                 }
 
                 // Parse items in SUMMARY section
                 if (inSummary && line.trim() && !line.includes('=====')) {
+                    // Skip the separator line with dashes
+                    if (line.match(/^[\s-]+$/)) {
+                        continue;
+                    }
+                    
                     // Parse the line format more carefully to handle empty revisions
                     // Format: Qty  Alias  [Rev]  Description  Type
                     
