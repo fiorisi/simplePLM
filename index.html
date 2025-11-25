@@ -603,19 +603,17 @@
             let bomCode = '';
             let bomDescription = '';
             let inSummary = false;
-            let skipNextLines = 0;
+            let headerParsed = false;
             const items = [];
+
+            // Column positions will be determined dynamically from the header line
+            let colPositions = null;
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
 
-                // Skip lines if we're told to (header/separator lines after SUMMARY)
-                if (skipNextLines > 0) {
-                    skipNextLines--;
-                    continue;
-                }
-
                 // Extract BOM code and description from the Assembly line
+                // Format: "Assembly : CODE Rev XX -  Description | TYPE"
                 if (line.includes('Assembly :') && !bomCode) {
                     const match = line.match(/Assembly\s*:\s*(\S+)\s+Rev\s+\S+\s+-\s+(.+?)\s*\|/);
                     if (match) {
@@ -627,72 +625,121 @@
                 // Check if we've reached the SUMMARY section
                 if (line.trim() === 'SUMMARY') {
                     inSummary = true;
-                    skipNextLines = 2; // Skip blank line and header line with dashes
                     continue;
                 }
 
-                // Parse items in SUMMARY section
-                if (inSummary && line.trim() && !line.includes('=====')) {
+                // Once in SUMMARY, look for the header line to determine column positions
+                if (inSummary && !headerParsed) {
+                    // Skip empty lines
+                    if (!line.trim()) continue;
+                    
+                    // The header line contains "Qt.y" or "Qty" and "Code" and "rev" and "Description" and "Type"
+                    if (line.includes('Code') && (line.includes('Qt.y') || line.includes('Qty'))) {
+                        // Parse header to find column positions
+                        // Header format: " Qt.yCode                              revDescription                                                                     Type"
+                        // Find where each column starts by looking for keywords
+                        const revPos = line.indexOf('rev');
+                        const descPos = line.indexOf('Description');
+                        const typePos = line.lastIndexOf('Type');
+                        
+                        if (revPos > 0 && descPos > 0 && typePos > 0) {
+                            colPositions = {
+                                // Quantity is at the start (positions 0-4)
+                                qtyStart: 0,
+                                qtyEnd: 5,
+                                // Code runs from position 5 to where 'rev' starts
+                                codeStart: 5,
+                                codeEnd: revPos,
+                                // Revision is from 'rev' position to 'Description' position
+                                revStart: revPos,
+                                revEnd: descPos,
+                                // Description is from 'Description' to 'Type'
+                                descStart: descPos,
+                                descEnd: typePos,
+                                // Type is from 'Type' position to end
+                                typeStart: typePos
+                            };
+                        }
+                        headerParsed = true;
+                        continue;
+                    }
+                    
                     // Skip the separator line with dashes
                     if (line.match(/^[\s-]+$/)) {
                         continue;
                     }
+                }
+
+                // Parse data lines in SUMMARY section using fixed-width columns
+                if (inSummary && headerParsed && line.trim() && !line.includes('=====')) {
+                    // Skip separator lines
+                    if (line.match(/^[\s-]+$/)) {
+                        continue;
+                    }
                     
-                    // Parse the line format more carefully to handle empty revisions
-                    // Format: Qty  Alias  [Rev]  Description  Type
+                    // Check if line starts with a quantity (number after optional spaces)
+                    const qtyMatch = line.match(/^\s*(\d+)\s/);
+                    if (!qtyMatch) continue;
                     
-                    // First extract quantity and alias
-                    const qtyAliasMatch = line.match(/^\s*(\d+)\s+(\S+)\s+(.*)$/);
-                    if (qtyAliasMatch) {
-                        const quantity = qtyAliasMatch[1].trim();
-                        const alias = qtyAliasMatch[2].trim();
-                        const remainder = qtyAliasMatch[3];
+                    const quantity = qtyMatch[1];
+                    
+                    if (colPositions) {
+                        // Use fixed-width column parsing based on header positions
+                        const alias = line.substring(colPositions.codeStart, colPositions.codeEnd).trim();
+                        const revision = line.substring(colPositions.revStart, colPositions.revEnd).trim();
+                        const description = line.substring(colPositions.descStart, colPositions.descEnd).trim();
+                        const category = line.substring(colPositions.typeStart).trim();
                         
-                        // Now parse the remainder: [Rev] Description Type
-                        // The Type is always the last word preceded by multiple spaces
-                        const typeMatch = remainder.match(/\s{2,}(\S+)\s*$/);
-                        let category = '';
-                        let descAndRev = remainder;
-                        
-                        if (typeMatch) {
-                            category = typeMatch[1].trim();
-                            // Remove the type from the end to get description and maybe revision
-                            descAndRev = remainder.substring(0, typeMatch.index);
+                        if (alias) {
+                            items.push({
+                                quantity: quantity,
+                                alias: alias,
+                                revision: revision,
+                                description: description,
+                                category: category
+                            });
                         }
-                        
-                        // Now we have descAndRev which is: [Rev] Description
-                        // A revision is typically a short code (1-10 chars) at the start, followed by spaces
-                        // If there's a short word (1-10 non-space chars) followed by at least 2 spaces and more text, it's likely a revision
-                        let revision = '';
-                        let description = '';
-                        
-                        const revMatch = descAndRev.match(/^(\S{1,10})\s{2,}(.+)$/);
-                        if (revMatch) {
-                            // Check if this looks like a revision (short alphanumeric code)
-                            const potentialRev = revMatch[1];
-                            // Revisions are typically: single digits, or codes like A1, A2, B, etc.
-                            // NOT long words like "SLOTTED", "CHEESE", etc.
-                            if (potentialRev.length <= 3 || /^[A-Z0-9_-]+$/.test(potentialRev)) {
-                                revision = potentialRev;
-                                description = revMatch[2].trim();
-                            } else {
-                                // It's actually the start of the description
-                                revision = '';
-                                description = descAndRev.trim();
+                    } else {
+                        // Fallback: parse by extracting quantity and alias, then type from end
+                        // This handles cases where header parsing failed
+                        const fallbackMatch = line.match(/^\s*(\d+)\s+(\S+)\s+(.*)$/);
+                        if (fallbackMatch) {
+                            const alias = fallbackMatch[2].trim();
+                            let remainder = fallbackMatch[3];
+                            
+                            // Extract type from the end (last 4-char uppercase word)
+                            const typeMatch = remainder.match(/\s+([A-Z]{4})\s*$/);
+                            let category = '';
+                            if (typeMatch) {
+                                category = typeMatch[1];
+                                remainder = remainder.substring(0, typeMatch.index);
                             }
-                        } else {
-                            // No clear pattern - treat everything as description
-                            revision = '';
-                            description = descAndRev.trim();
+                            
+                            // For revision and description, try to detect revision at start
+                            // Revisions are typically short (1-3 chars) alphanumeric codes
+                            let revision = '';
+                            let description = remainder.trim();
+                            
+                            const revDescMatch = remainder.match(/^(\S{1,3})\s+(.+)$/);
+                            if (revDescMatch) {
+                                const potentialRev = revDescMatch[1];
+                                // Check if it looks like a revision (short, alphanumeric, often starts with letter/number)
+                                if (/^[A-Za-z0-9]{1,3}$/.test(potentialRev)) {
+                                    revision = potentialRev;
+                                    description = revDescMatch[2].trim();
+                                }
+                            }
+                            
+                            if (alias) {
+                                items.push({
+                                    quantity: quantity,
+                                    alias: alias,
+                                    revision: revision,
+                                    description: description,
+                                    category: category
+                                });
+                            }
                         }
-                        
-                        items.push({
-                            quantity: quantity,
-                            alias: alias,
-                            revision: revision, // Leave empty if no revision found
-                            description: description,
-                            category: category
-                        });
                     }
                 }
             }
@@ -1067,7 +1114,7 @@
         function renderConfigBanner() {
             return `
                 <div class="alert alert-warning">
-                    <span class="alert-icon">⚙️</span>
+                    <span class="alert-icon">âš™ï¸</span>
                     <div>
                         <strong>Setup Required</strong><br>
                         Please configure the Excel file URL in the code before using this application. See the README for instructions.
@@ -1091,7 +1138,7 @@
             if (appData.error) {
                 return `
                     <div class="alert alert-warning">
-                        <span class="alert-icon">⚠️</span>
+                        <span class="alert-icon">âš ï¸</span>
                         <div><strong>Error:</strong> ${appData.error}</div>
                     </div>
                 `;
@@ -1121,7 +1168,7 @@
             return `
                 <div class="controls">
                     <div class="search-container">
-                        <span class="search-icon">🔍</span>
+                        <span class="search-icon">ðŸ”</span>
                         <input 
                             type="text" 
                             class="search-box" 
@@ -1131,13 +1178,13 @@
                         >
                     </div>
                     <button class="btn btn-secondary" id="refresh-btn">
-                        🔄 Refresh
+                        ðŸ”„ Refresh
                     </button>
                     <button class="btn btn-import" id="import-btn">
-                        📥 Import BOM
+                        ðŸ“¥ Import BOM
                     </button>
                     <button class="btn btn-download" id="download-btn">
-                        💾 Download Excel
+                        ðŸ’¾ Download Excel
                     </button>
                 </div>
                 <input type="file" id="bom-file-input" accept=".1,.bom.1" style="display:none">
@@ -1157,7 +1204,7 @@
                 return `
                     <div class="content-card">
                         <div class="loading">
-                            <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">ðŸ“¦</div>
                             <p>No items found</p>
                         </div>
                     </div>
@@ -1200,7 +1247,7 @@
                 return `
                     <div class="content-card">
                         <div class="loading">
-                            <div style="font-size: 4rem; margin-bottom: 1rem;">📋</div>
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">ðŸ“‹</div>
                             <p>No BOMs found</p>
                         </div>
                     </div>
@@ -1269,7 +1316,7 @@
                     <div class="modal">
                         <div class="modal-header">
                             <h2>Import BOM: ${bomCode}</h2>
-                            <button class="close-btn" onclick="closeImportModal()">×</button>
+                            <button class="close-btn" onclick="closeImportModal()">Ã—</button>
                         </div>
                         <div class="modal-body">
                             <div class="bom-info">
@@ -1279,7 +1326,7 @@
 
                             ${replacingExisting ? `
                                 <div class="alert alert-warning">
-                                    <span class="alert-icon">🔄</span>
+                                    <span class="alert-icon">ðŸ”„</span>
                                     <div>
                                         <strong>Replacing Existing BOM</strong><br>
                                         This will replace the existing BOM "${bomCode}" in your database with the new version from this file.
@@ -1304,7 +1351,7 @@
 
                             ${conflictCount > 0 ? `
                                 <div class="alert alert-warning">
-                                    <span class="alert-icon">⚠️</span>
+                                    <span class="alert-icon">âš ï¸</span>
                                     <div>
                                         <strong>Revision Conflicts Detected</strong><br>
                                         Some items have different revisions than what's in your database. 
