@@ -621,16 +621,60 @@
 
                 // Parse items in SUMMARY section
                 if (inSummary && line.trim() && !line.includes('=====')) {
-                    // Parse the line format: Qt.y Code rev Description Type
-                    const match = line.match(/^\s*(\d+)\s+(\S+)\s+(\S*)\s+(.+?)\s{2,}(\S+)\s*$/);
-                    if (match) {
-                        const [, quantity, alias, revision, description, category] = match;
+                    // Parse the line format more carefully to handle empty revisions
+                    // Format: Qty  Alias  [Rev]  Description  Type
+                    
+                    // First extract quantity and alias
+                    const qtyAliasMatch = line.match(/^\s*(\d+)\s+(\S+)\s+(.*)$/);
+                    if (qtyAliasMatch) {
+                        const quantity = qtyAliasMatch[1].trim();
+                        const alias = qtyAliasMatch[2].trim();
+                        const remainder = qtyAliasMatch[3];
+                        
+                        // Now parse the remainder: [Rev] Description Type
+                        // The Type is always the last word preceded by multiple spaces
+                        const typeMatch = remainder.match(/\s{2,}(\S+)\s*$/);
+                        let category = '';
+                        let descAndRev = remainder;
+                        
+                        if (typeMatch) {
+                            category = typeMatch[1].trim();
+                            // Remove the type from the end to get description and maybe revision
+                            descAndRev = remainder.substring(0, typeMatch.index);
+                        }
+                        
+                        // Now we have descAndRev which is: [Rev] Description
+                        // A revision is typically a short code (1-10 chars) at the start, followed by spaces
+                        // If there's a short word (1-10 non-space chars) followed by at least 2 spaces and more text, it's likely a revision
+                        let revision = '';
+                        let description = '';
+                        
+                        const revMatch = descAndRev.match(/^(\S{1,10})\s{2,}(.+)$/);
+                        if (revMatch) {
+                            // Check if this looks like a revision (short alphanumeric code)
+                            const potentialRev = revMatch[1];
+                            // Revisions are typically: single digits, or codes like A1, A2, B, etc.
+                            // NOT long words like "SLOTTED", "CHEESE", etc.
+                            if (potentialRev.length <= 3 || /^[A-Z0-9_-]+$/.test(potentialRev)) {
+                                revision = potentialRev;
+                                description = revMatch[2].trim();
+                            } else {
+                                // It's actually the start of the description
+                                revision = '';
+                                description = descAndRev.trim();
+                            }
+                        } else {
+                            // No clear pattern - treat everything as description
+                            revision = '';
+                            description = descAndRev.trim();
+                        }
+                        
                         items.push({
-                            quantity: quantity.trim(),
-                            alias: alias.trim(),
-                            revision: revision.trim() || '0',
-                            description: description.trim(),
-                            category: category.trim()
+                            quantity: quantity,
+                            alias: alias,
+                            revision: revision, // Leave empty if no revision found
+                            description: description,
+                            category: category
                         });
                     }
                 }
@@ -659,28 +703,51 @@
 
         // Compare imported items with existing items
         function compareItems(importedItems, existingItems) {
+            // Get the starting GBCODE number and track it as we assign codes
+            let nextGBCodeNumber = 0;
+            existingItems.forEach(item => {
+                const gbcode = item.GBCODE || '';
+                const match = gbcode.match(/GB(\d+)/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > nextGBCodeNumber) {
+                        nextGBCodeNumber = num;
+                    }
+                }
+            });
+            nextGBCodeNumber++; // Start from the next available number
+            
             return importedItems.map(imported => {
                 const existing = existingItems.find(e => e.ALIAS === imported.alias);
                 
                 if (!existing) {
+                    // New item - assign the next GBCODE and increment for next item
+                    const assignedCode = `GB${String(nextGBCodeNumber).padStart(4, '0')}`;
+                    nextGBCodeNumber++;
+                    
                     return {
                         ...imported,
                         status: 'new',
                         action: 'create',
-                        newGBCode: getNextGBCode(existingItems),
+                        newGBCode: assignedCode,
                         selected: true
                     };
                 } else if (existing.REVISION !== imported.revision) {
+                    // Revision conflict - assign new GBCODE for the new revision
+                    const assignedCode = `GB${String(nextGBCodeNumber).padStart(4, '0')}`;
+                    nextGBCodeNumber++;
+                    
                     return {
                         ...imported,
                         status: 'conflict',
                         action: 'create-new-revision',
                         existingGBCode: existing.GBCODE,
                         existingRevision: existing.REVISION,
-                        newGBCode: getNextGBCode(existingItems),
+                        newGBCode: assignedCode,
                         selected: true
                     };
                 } else {
+                    // Item exists with matching revision - no new GBCODE needed
                     return {
                         ...imported,
                         status: 'exists',
@@ -834,8 +901,13 @@
             const itemsSheet = XLSX.utils.json_to_sheet(allItems);
             XLSX.utils.book_append_sheet(wb, itemsSheet, 'Items');
             
-            // Add existing BOM sheets
+            // Add existing BOM sheets (skip the one being replaced if applicable)
             appData.boms.forEach(bom => {
+                // Skip this BOM if we're replacing it with a new one
+                if (newBOM && newBOM.replacingExisting && bom.sheetName === newBOM.existingBOMSheet) {
+                    return; // Skip this one - it will be replaced
+                }
+                
                 const bomData = [];
                 bomData.push(['BOMCODE', bom.bomCode]);
                 bomData.push(['DESCRIPTION', bom.description]);
@@ -858,14 +930,14 @@
                 XLSX.utils.book_append_sheet(wb, bomSheet, bom.sheetName);
             });
             
-            // Add new BOM
+            // Add new BOM (or replacement BOM)
             if (newBOM) {
                 const bomData = [];
                 bomData.push(['BOMCODE', newBOM.bomCode]);
                 bomData.push(['DESCRIPTION', newBOM.bomDescription]);
                 bomData.push(['CREATED_DATE', new Date().toISOString().split('T')[0]]);
                 bomData.push(['STATUS', 'Active']);
-                bomData.push(['REVISION', 'A0']);
+                bomData.push(['REVISION', newBOM.replacingExisting ? 'Updated' : 'A0']);
                 bomData.push([]);
                 bomData.push(['ALIAS', 'GBCODE', 'QUANTITY', 'NOTES']);
                 
@@ -890,7 +962,9 @@
                 });
                 
                 const bomSheet = XLSX.utils.aoa_to_sheet(bomData);
-                XLSX.utils.book_append_sheet(wb, bomSheet, newBOM.bomCode);
+                // Use the existing sheet name if replacing, otherwise use the BOM code
+                const sheetName = newBOM.replacingExisting ? newBOM.existingBOMSheet : newBOM.bomCode;
+                XLSX.utils.book_append_sheet(wb, bomSheet, sheetName);
             }
             
             return wb;
@@ -906,6 +980,36 @@
                 if (!bomData.bomCode || bomData.items.length === 0) {
                     alert('Failed to parse BOM file. Please check the file format.');
                     return;
+                }
+                
+                // Check if BOM already exists
+                const existingBOM = appData.boms.find(b => b.bomCode === bomData.bomCode);
+                
+                if (existingBOM) {
+                    const userConfirmed = confirm(
+                        `A BOM with code "${bomData.bomCode}" already exists in your database.\n\n` +
+                        `Existing BOM: ${existingBOM.description}\n` +
+                        `New BOM: ${bomData.bomDescription}\n\n` +
+                        `Do you want to REPLACE the existing BOM with this new one?\n\n` +
+                        `Note: If you click Cancel, the import will be stopped. ` +
+                        `We currently cannot have multiple BOMs with the same code.`
+                    );
+                    
+                    if (!userConfirmed) {
+                        // User chose not to replace - stop the import process
+                        alert(
+                            `Import cancelled.\n\n` +
+                            `For the time being, we cannot have multiple BOMs with the same code in the system. ` +
+                            `If you want to import this BOM, please either:\n` +
+                            `1. Choose to replace the existing BOM, or\n` +
+                            `2. Modify the BOM code in your .bom.1 file before importing.`
+                        );
+                        return;
+                    }
+                    
+                    // User confirmed replacement - mark for replacement in import data
+                    bomData.replacingExisting = true;
+                    bomData.existingBOMSheet = existingBOM.sheetName;
                 }
                 
                 const comparedItems = compareItems(bomData.items, appData.items);
@@ -1138,7 +1242,7 @@
         function renderImportModal() {
             if (!appData.importData) return '';
 
-            const { bomCode, bomDescription, comparedItems } = appData.importData;
+            const { bomCode, bomDescription, comparedItems, replacingExisting } = appData.importData;
             const newCount = comparedItems.filter(i => i.status === 'new' && i.selected).length;
             const conflictCount = comparedItems.filter(i => i.status === 'conflict' && i.selected).length;
             const skipCount = comparedItems.filter(i => i.status === 'exists').length;
@@ -1155,6 +1259,16 @@
                                 <div class="bom-info-title">${bomCode}</div>
                                 <div class="bom-info-meta">${bomDescription}</div>
                             </div>
+
+                            ${replacingExisting ? `
+                                <div class="alert alert-warning">
+                                    <span class="alert-icon">🔄</span>
+                                    <div>
+                                        <strong>Replacing Existing BOM</strong><br>
+                                        This will replace the existing BOM "${bomCode}" in your database with the new version from this file.
+                                    </div>
+                                </div>
+                            ` : ''}
 
                             <div class="summary-stats">
                                 <div class="stat-card">
@@ -1230,7 +1344,7 @@
                         <div class="modal-footer">
                             <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
                             <button class="btn btn-primary" onclick="confirmImport()">
-                                Import BOM and ${newCount + conflictCount} Items
+                                ${replacingExisting ? 'Replace BOM and' : 'Import BOM and'} ${newCount + conflictCount} Items
                             </button>
                         </div>
                     </div>
