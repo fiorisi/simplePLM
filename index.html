@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PLM System</title>
+    <title>PLM System with BOM Import</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,6 @@
             --forest-700: #2d6a4f;
             --forest-600: #40916c;
             --forest-500: #52b788;
-            --forest-400: #74c69d;
             --sage-100: #f8faf9;
             --sage-200: #e8f3ed;
             --sage-300: #d4e9e1;
@@ -31,9 +30,11 @@
             --neutral-400: #a3a3a3;
             --neutral-600: #525252;
             --neutral-800: #262626;
-            --neutral-900: #171717;
             --accent-orange: #fb8500;
             --accent-blue: #219ebc;
+            --warning-yellow: #ffc107;
+            --success-green: #28a745;
+            --danger-red: #dc3545;
         }
 
         body {
@@ -45,21 +46,15 @@
         }
 
         .app-container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 2rem;
             animation: fadeIn 0.5s ease-out;
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         header {
@@ -103,36 +98,6 @@
             z-index: 1;
         }
 
-        .config-banner {
-            background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
-            border: 2px solid #ffc107;
-            padding: 1.5rem;
-            border-radius: 16px;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.1);
-        }
-
-        .config-banner h3 {
-            color: #856404;
-            margin-bottom: 0.75rem;
-            font-size: 1.1rem;
-        }
-
-        .config-banner p {
-            color: #856404;
-            margin-bottom: 0.5rem;
-            line-height: 1.7;
-        }
-
-        .config-banner code {
-            background: rgba(133, 100, 4, 0.1);
-            padding: 0.2rem 0.5rem;
-            border-radius: 6px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-            color: #664d03;
-        }
-
         .tabs {
             display: flex;
             gap: 0.5rem;
@@ -155,7 +120,6 @@
             font-weight: 600;
             color: var(--neutral-600);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
         }
 
         .tab:hover {
@@ -259,9 +223,9 @@
             border: 2px solid var(--sage-300);
         }
 
-        .btn-secondary:hover {
-            background: var(--sage-100);
-            border-color: var(--forest-600);
+        .btn-import {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, #1e88a8 100%);
+            color: white;
         }
 
         .btn-download {
@@ -278,14 +242,8 @@
         }
 
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .table-container {
@@ -331,6 +289,11 @@
             background: var(--sage-100);
         }
 
+        tbody tr.obsolete {
+            background: #f0f0f0;
+            opacity: 0.7;
+        }
+
         tbody tr:last-child td {
             border-bottom: none;
         }
@@ -355,92 +318,118 @@
             to { transform: rotate(360deg); }
         }
 
-        .error {
-            background: linear-gradient(135deg, #fee 0%, #fdd 100%);
-            border: 2px solid #dc3545;
-            color: #721c24;
-            padding: 1.5rem;
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 24px;
+            max-width: 1200px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .modal-header {
+            padding: 2rem 2.5rem;
+            border-bottom: 2px solid var(--sage-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, var(--sage-100) 0%, white 100%);
+        }
+
+        .modal-header h2 {
+            font-size: 1.75rem;
+            color: var(--forest-800);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--neutral-600);
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: var(--sage-200);
+            color: var(--forest-800);
+        }
+
+        .modal-body {
+            padding: 2.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem 2.5rem;
+            border-top: 2px solid var(--sage-200);
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            background: var(--sage-100);
+        }
+
+        .file-drop-zone {
+            border: 3px dashed var(--sage-300);
             border-radius: 16px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, var(--sage-100) 0%, white 100%);
+        }
+
+        .file-drop-zone:hover {
+            border-color: var(--forest-600);
+            background: var(--sage-200);
+        }
+
+        .file-drop-zone.active {
+            border-color: var(--forest-600);
+            background: var(--sage-200);
+            border-style: solid;
+        }
+
+        .drop-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .import-section {
             margin-bottom: 2rem;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: var(--neutral-600);
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
+        .import-section h3 {
+            font-size: 1.25rem;
             margin-bottom: 1rem;
-            opacity: 0.3;
-        }
-
-        .empty-state h3 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            color: var(--neutral-700);
-        }
-
-        .bom-section {
-            padding: 1.5rem;
-        }
-
-        .bom-card {
-            background: linear-gradient(135deg, white 0%, var(--sage-100) 100%);
-            border: 2px solid var(--sage-300);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .bom-card:hover {
-            border-color: var(--forest-500);
-            box-shadow: 0 8px 24px rgba(26, 77, 46, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .bom-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--sage-300);
-        }
-
-        .bom-title {
-            font-size: 1.5rem;
-            font-weight: 700;
             color: var(--forest-800);
-            margin-bottom: 0.5rem;
         }
 
-        .bom-description {
-            font-size: 1rem;
-            color: var(--neutral-600);
-            margin-bottom: 0.25rem;
-        }
-
-        .bom-meta {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: var(--neutral-500);
-            display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .meta-label {
-            font-weight: 600;
-            color: var(--neutral-600);
+        .item-comparison-table {
+            margin-top: 2rem;
         }
 
         .status-badge {
@@ -458,58 +447,123 @@
             color: #155724;
         }
 
-        .status-draft {
+        .status-obsolete {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-new {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-conflict {
             background: #fff3cd;
             color: #856404;
         }
 
-        .download-instructions {
+        .checkbox-cell {
+            text-align: center;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .alert {
+            padding: 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: start;
+            gap: 1rem;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 2px solid var(--warning-yellow);
+            color: #856404;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 2px solid var(--success-green);
+            color: #155724;
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
             background: linear-gradient(135deg, var(--sage-100) 0%, white 100%);
-            border: 2px solid var(--forest-400);
-            border-radius: 16px;
             padding: 1.5rem;
-            margin-top: 2rem;
+            border-radius: 12px;
+            border: 2px solid var(--sage-300);
         }
 
-        .download-instructions h3 {
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
             color: var(--forest-800);
-            margin-bottom: 1rem;
-            font-size: 1.2rem;
+            margin-bottom: 0.25rem;
         }
 
-        .download-instructions p {
-            color: var(--neutral-700);
-            margin-bottom: 0.75rem;
-            line-height: 1.8;
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--neutral-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .download-instructions ol {
-            margin-left: 1.5rem;
-            color: var(--neutral-700);
-            line-height: 1.8;
+        .bom-info {
+            background: linear-gradient(135deg, var(--sage-100) 0%, white 100%);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--sage-300);
+            margin-bottom: 2rem;
         }
 
-        .download-instructions li {
+        .bom-info-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--forest-800);
             margin-bottom: 0.5rem;
+        }
+
+        .bom-info-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--neutral-600);
+        }
+
+        .hidden {
+            display: none !important;
         }
 
         @media (max-width: 768px) {
             .app-container {
                 padding: 1rem;
             }
-
             h1 {
                 font-size: 2rem;
             }
-
             .tabs {
                 flex-direction: column;
             }
-
             .controls {
                 flex-direction: column;
             }
-
             .search-container {
                 width: 100%;
             }
@@ -520,14 +574,10 @@
     <div id="root"></div>
 
     <script>
-        // CONFIGURATION - UPDATE THESE VALUES
         const CONFIG = {
-            // Replace 'YOUR_USERNAME' with your GitHub username
-            // Replace 'YOUR_REPO' with your repository name
-            EXCEL_FILE_URL: 'https://raw.githubusercontent.com/fiorisi/simplePLM/main/plm-database.xlsx'
+            EXCEL_FILE_URL: 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/plm-database.xlsx'
         };
 
-        // Check if configured
         const isConfigured = !CONFIG.EXCEL_FILE_URL.includes('YOUR_USERNAME');
 
         let appData = {
@@ -536,8 +586,112 @@
             loading: true,
             error: null,
             searchTerm: '',
-            activeTab: 'items'
+            activeTab: 'items',
+            showImportModal: false,
+            importData: null,
+            workbook: null
         };
+
+        // Parse .bom.1 file
+        function parseBOM1File(content) {
+            const lines = content.split('\n');
+            let bomCode = '';
+            let bomDescription = '';
+            let inSummary = false;
+            const items = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // Extract BOM code and description from the Assembly line
+                if (line.includes('Assembly :') && !bomCode) {
+                    const match = line.match(/Assembly\s*:\s*(\S+)\s+Rev\s+\S+\s+-\s+(.+?)\s*\|/);
+                    if (match) {
+                        bomCode = match[1].trim();
+                        bomDescription = match[2].trim();
+                    }
+                }
+
+                // Check if we've reached the SUMMARY section
+                if (line.trim() === 'SUMMARY') {
+                    inSummary = true;
+                    i += 2; // Skip the header line
+                    continue;
+                }
+
+                // Parse items in SUMMARY section
+                if (inSummary && line.trim() && !line.includes('=====')) {
+                    // Parse the line format: Qt.y Code rev Description Type
+                    const match = line.match(/^\s*(\d+)\s+(\S+)\s+(\S*)\s+(.+?)\s{2,}(\S+)\s*$/);
+                    if (match) {
+                        const [, quantity, alias, revision, description, category] = match;
+                        items.push({
+                            quantity: quantity.trim(),
+                            alias: alias.trim(),
+                            revision: revision.trim() || '0',
+                            description: description.trim(),
+                            category: category.trim()
+                        });
+                    }
+                }
+            }
+
+            return {
+                bomCode,
+                bomDescription,
+                items
+            };
+        }
+
+        // Find the next available GBCODE
+        function getNextGBCode(items) {
+            let maxNum = 0;
+            items.forEach(item => {
+                const gbcode = item.GBCODE || '';
+                const match = gbcode.match(/GB(\d+)/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxNum) maxNum = num;
+                }
+            });
+            return `GB${String(maxNum + 1).padStart(4, '0')}`;
+        }
+
+        // Compare imported items with existing items
+        function compareItems(importedItems, existingItems) {
+            return importedItems.map(imported => {
+                const existing = existingItems.find(e => e.ALIAS === imported.alias);
+                
+                if (!existing) {
+                    return {
+                        ...imported,
+                        status: 'new',
+                        action: 'create',
+                        newGBCode: getNextGBCode(existingItems),
+                        selected: true
+                    };
+                } else if (existing.REVISION !== imported.revision) {
+                    return {
+                        ...imported,
+                        status: 'conflict',
+                        action: 'create-new-revision',
+                        existingGBCode: existing.GBCODE,
+                        existingRevision: existing.REVISION,
+                        newGBCode: getNextGBCode(existingItems),
+                        selected: true
+                    };
+                } else {
+                    return {
+                        ...imported,
+                        status: 'exists',
+                        action: 'skip',
+                        existingGBCode: existing.GBCODE,
+                        existingRevision: existing.REVISION,
+                        selected: false
+                    };
+                }
+            });
+        }
 
         // Load Excel file from GitHub
         async function loadExcelFile() {
@@ -549,27 +703,24 @@
                 const response = await fetch(CONFIG.EXCEL_FILE_URL);
                 
                 if (!response.ok) {
-                    throw new Error('Failed to load Excel file. Make sure the URL is correct and the file is accessible.');
+                    throw new Error('Failed to load Excel file');
                 }
 
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                appData.workbook = workbook;
 
-                // Parse Items sheet
                 if (workbook.SheetNames.includes('Items')) {
                     const itemsSheet = workbook.Sheets['Items'];
                     const itemsData = XLSX.utils.sheet_to_json(itemsSheet);
                     appData.items = itemsData;
                 }
 
-                // Parse BOM sheets (all sheets except Items)
                 appData.boms = [];
                 workbook.SheetNames.forEach(sheetName => {
                     if (sheetName !== 'Items') {
                         const bom = parseBOMSheet(workbook.Sheets[sheetName], sheetName);
-                        if (bom) {
-                            appData.boms.push(bom);
-                        }
+                        if (bom) appData.boms.push(bom);
                     }
                 });
 
@@ -582,47 +733,35 @@
             }
         }
 
-        // Parse a BOM sheet
         function parseBOMSheet(sheet, sheetName) {
             try {
-                // Convert sheet to array of arrays
                 const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                
                 if (data.length === 0) return null;
 
-                // Extract metadata from top rows
                 const metadata = {};
                 let itemsStartRow = -1;
 
                 for (let i = 0; i < data.length; i++) {
                     const row = data[i];
-                    
-                    // Check if this is the items header row
                     if (row[0] && (row[0].toString().toUpperCase() === 'ALIAS' || 
                                    row[0].toString().toLowerCase() === 'alias')) {
                         itemsStartRow = i;
                         break;
                     }
-
-                    // Otherwise treat as metadata
                     if (row[0] && row[1]) {
                         metadata[row[0]] = row[1];
                     }
                 }
 
-                // Extract BOM items
                 const items = [];
                 if (itemsStartRow >= 0 && itemsStartRow < data.length - 1) {
                     const headers = data[itemsStartRow].map(h => h ? h.toString() : '');
-                    
                     for (let i = itemsStartRow + 1; i < data.length; i++) {
                         const row = data[i];
                         if (row.length > 0 && row[0]) {
                             const item = {};
                             headers.forEach((header, idx) => {
-                                if (header) {
-                                    item[header] = row[idx] || '';
-                                }
+                                if (header) item[header] = row[idx] || '';
                             });
                             items.push(item);
                         }
@@ -630,13 +769,14 @@
                 }
 
                 return {
-                    sheetName: sheetName,
+                    sheetName,
                     bomCode: metadata.BOMCODE || sheetName,
                     description: metadata.DESCRIPTION || '',
                     createdDate: metadata.CREATED_DATE || '',
                     status: metadata.STATUS || '',
-                    metadata: metadata,
-                    items: items
+                    revision: metadata.REVISION || '',
+                    metadata,
+                    items
                 };
             } catch (err) {
                 console.error(`Error parsing BOM sheet ${sheetName}:`, err);
@@ -644,26 +784,140 @@
             }
         }
 
-        // Filter data based on search term
-        function getFilteredItems() {
-            if (!appData.searchTerm) return appData.items;
+        // Generate updated Excel file with new items
+        function generateUpdatedExcel(newItems, newBOM) {
+            const wb = XLSX.utils.book_new();
             
-            const search = appData.searchTerm.toLowerCase();
-            return appData.items.filter(item => {
-                return Object.values(item).some(value => 
-                    String(value).toLowerCase().includes(search)
-                );
+            // Add existing items plus new items
+            const allItems = [...appData.items];
+            
+            // Mark old revisions as obsolete
+            newItems.forEach(newItem => {
+                if (newItem.action === 'create-new-revision') {
+                    const oldItem = allItems.find(i => i.ALIAS === newItem.alias && i.REVISION === newItem.existingRevision);
+                    if (oldItem) {
+                        oldItem.STATUS = 'Obsolete';
+                    }
+                }
             });
+            
+            // Add new items
+            newItems.forEach(newItem => {
+                if (newItem.selected && (newItem.action === 'create' || newItem.action === 'create-new-revision')) {
+                    allItems.push({
+                        ALIAS: newItem.alias,
+                        IITCODE: '',
+                        GBCODE: newItem.newGBCode,
+                        REVISION: newItem.revision,
+                        STATUS: 'Active',
+                        CATEGORY: newItem.category,
+                        DESCRIPTION: newItem.description,
+                        UoM: 'pcs',
+                        MANUFACTURER_1: '',
+                        MANUFACTURER_CODE_1: '',
+                        MANUFACTURER_2: '',
+                        MANUFACTURER_CODE_2: '',
+                        SUPPLIER_1: '',
+                        SUPPLIER_CODE_1: '',
+                        SUPPLIER_COST_1: '',
+                        SUPPLIER_2: '',
+                        SUPPLIER_CODE_2: '',
+                        SUPPLIER_COST_2: '',
+                        SUPPLIER_3: '',
+                        SUPPLIER_CODE_3: '',
+                        SUPPLIER_COST_3: '',
+                        COST: ''
+                    });
+                }
+            });
+            
+            const itemsSheet = XLSX.utils.json_to_sheet(allItems);
+            XLSX.utils.book_append_sheet(wb, itemsSheet, 'Items');
+            
+            // Add existing BOM sheets
+            appData.boms.forEach(bom => {
+                const bomData = [];
+                bomData.push(['BOMCODE', bom.bomCode]);
+                bomData.push(['DESCRIPTION', bom.description]);
+                bomData.push(['CREATED_DATE', bom.createdDate]);
+                bomData.push(['STATUS', bom.status]);
+                if (bom.revision) bomData.push(['REVISION', bom.revision]);
+                bomData.push([]);
+                bomData.push(['ALIAS', 'GBCODE', 'QUANTITY', 'NOTES']);
+                
+                bom.items.forEach(item => {
+                    bomData.push([
+                        item.ALIAS || item.alias,
+                        item.GBCODE || item.gbcode,
+                        item.QUANTITY || item.quantity,
+                        item.NOTES || item.notes || ''
+                    ]);
+                });
+                
+                const bomSheet = XLSX.utils.aoa_to_sheet(bomData);
+                XLSX.utils.book_append_sheet(wb, bomSheet, bom.sheetName);
+            });
+            
+            // Add new BOM
+            if (newBOM) {
+                const bomData = [];
+                bomData.push(['BOMCODE', newBOM.bomCode]);
+                bomData.push(['DESCRIPTION', newBOM.bomDescription]);
+                bomData.push(['CREATED_DATE', new Date().toISOString().split('T')[0]]);
+                bomData.push(['STATUS', 'Active']);
+                bomData.push(['REVISION', 'A0']);
+                bomData.push([]);
+                bomData.push(['ALIAS', 'GBCODE', 'QUANTITY', 'NOTES']);
+                
+                newBOM.items.forEach(item => {
+                    // Find the GBCODE for this item
+                    let gbcode = '';
+                    if (item.status === 'exists') {
+                        gbcode = item.existingGBCode;
+                    } else if (item.selected) {
+                        gbcode = item.newGBCode;
+                    } else {
+                        const existingItem = allItems.find(i => i.ALIAS === item.alias);
+                        gbcode = existingItem ? existingItem.GBCODE : '';
+                    }
+                    
+                    bomData.push([
+                        item.alias,
+                        gbcode,
+                        item.quantity,
+                        ''
+                    ]);
+                });
+                
+                const bomSheet = XLSX.utils.aoa_to_sheet(bomData);
+                XLSX.utils.book_append_sheet(wb, bomSheet, newBOM.bomCode);
+            }
+            
+            return wb;
         }
 
-        function getFilteredBOMs() {
-            if (!appData.searchTerm) return appData.boms;
-            
-            const search = appData.searchTerm.toLowerCase();
-            return appData.boms.filter(bom => {
-                return bom.bomCode.toLowerCase().includes(search) ||
-                       bom.description.toLowerCase().includes(search);
-            });
+        // Handle BOM file upload
+        function handleBOMFileUpload(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const bomData = parseBOM1File(content);
+                
+                if (!bomData.bomCode || bomData.items.length === 0) {
+                    alert('Failed to parse BOM file. Please check the file format.');
+                    return;
+                }
+                
+                const comparedItems = compareItems(bomData.items, appData.items);
+                
+                appData.importData = {
+                    ...bomData,
+                    comparedItems
+                };
+                appData.showImportModal = true;
+                render();
+            };
+            reader.readAsText(file);
         }
 
         // Render functions
@@ -675,6 +929,7 @@
                     ${!isConfigured ? renderConfigBanner() : ''}
                     ${isConfigured ? renderContent() : ''}
                 </div>
+                ${appData.showImportModal ? renderImportModal() : ''}
             `;
             attachEventListeners();
         }
@@ -683,21 +938,19 @@
             return `
                 <header>
                     <h1>PLM System</h1>
-                    <div class="subtitle">Product Lifecycle Management</div>
+                    <div class="subtitle">Product Lifecycle Management with BOM Import</div>
                 </header>
             `;
         }
 
         function renderConfigBanner() {
             return `
-                <div class="config-banner">
-                    <h3>⚙️ Setup Required</h3>
-                    <p>Before you can use the PLM system, you need to configure the Excel file location. Here's what to do:</p>
-                    <p style="margin-top: 1rem;"><strong>Step 1:</strong> Create a new repository on GitHub (can be private)</p>
-                    <p><strong>Step 2:</strong> Upload the <code>plm-database.xlsx</code> file to your repository</p>
-                    <p><strong>Step 3:</strong> Edit the <code>index.html</code> file and update the <code>CONFIG.EXCEL_FILE_URL</code> with your file's URL</p>
-                    <p style="margin-top: 1rem;">The URL should look like: <code>https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/plm-database.xlsx</code></p>
-                    <p style="margin-top: 1rem;">Replace <code>YOUR_USERNAME</code> with your GitHub username and <code>YOUR_REPO</code> with your repository name.</p>
+                <div class="alert alert-warning">
+                    <span class="alert-icon">⚙️</span>
+                    <div>
+                        <strong>Setup Required</strong><br>
+                        Please configure the Excel file URL in the code before using this application. See the README for instructions.
+                    </div>
                 </div>
             `;
         }
@@ -716,10 +969,10 @@
 
             if (appData.error) {
                 return `
-                    <div class="error">
-                        <strong>Error:</strong> ${appData.error}
+                    <div class="alert alert-warning">
+                        <span class="alert-icon">⚠️</span>
+                        <div><strong>Error:</strong> ${appData.error}</div>
                     </div>
-                    ${renderDownloadInstructions()}
                 `;
             }
 
@@ -727,7 +980,6 @@
                 ${renderTabs()}
                 ${renderControls()}
                 ${appData.activeTab === 'items' ? renderItemsView() : renderBOMsView()}
-                ${renderDownloadInstructions()}
             `;
         }
 
@@ -752,7 +1004,7 @@
                         <input 
                             type="text" 
                             class="search-box" 
-                            placeholder="Search items and BOMs..." 
+                            placeholder="Search..." 
                             value="${appData.searchTerm}"
                             id="search-input"
                         >
@@ -760,30 +1012,39 @@
                     <button class="btn btn-secondary" id="refresh-btn">
                         🔄 Refresh
                     </button>
+                    <button class="btn btn-import" id="import-btn">
+                        📥 Import BOM
+                    </button>
                     <button class="btn btn-download" id="download-btn">
-                        📥 Download Excel
+                        💾 Download Excel
                     </button>
                 </div>
+                <input type="file" id="bom-file-input" accept=".1,.bom.1" style="display:none">
             `;
         }
 
         function renderItemsView() {
-            const filteredItems = getFilteredItems();
+            const filteredItems = appData.searchTerm
+                ? appData.items.filter(item => 
+                    Object.values(item).some(v => 
+                        String(v).toLowerCase().includes(appData.searchTerm.toLowerCase())
+                    )
+                  )
+                : appData.items;
 
             if (filteredItems.length === 0) {
                 return `
                     <div class="content-card">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📦</div>
-                            <h3>No items found</h3>
-                            <p>Add items to your Excel file to see them here</p>
+                        <div class="loading">
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+                            <p>No items found</p>
                         </div>
                     </div>
                 `;
             }
 
             const headers = Object.keys(filteredItems[0]);
-
+            
             return `
                 <div class="content-card">
                     <div class="table-container">
@@ -795,7 +1056,7 @@
                             </thead>
                             <tbody>
                                 ${filteredItems.map(item => `
-                                    <tr>
+                                    <tr class="${item.STATUS === 'Obsolete' ? 'obsolete' : ''}">
                                         ${headers.map(h => `<td>${item[h] || ''}</td>`).join('')}
                                     </tr>
                                 `).join('')}
@@ -807,98 +1068,201 @@
         }
 
         function renderBOMsView() {
-            const filteredBOMs = getFilteredBOMs();
+            const filteredBOMs = appData.searchTerm
+                ? appData.boms.filter(bom => 
+                    bom.bomCode.toLowerCase().includes(appData.searchTerm.toLowerCase()) ||
+                    bom.description.toLowerCase().includes(appData.searchTerm.toLowerCase())
+                  )
+                : appData.boms;
 
             if (filteredBOMs.length === 0) {
                 return `
                     <div class="content-card">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📋</div>
-                            <h3>No BOMs found</h3>
-                            <p>Create BOM sheets in your Excel file to see them here</p>
+                        <div class="loading">
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">📋</div>
+                            <p>No BOMs found</p>
                         </div>
                     </div>
                 `;
             }
 
             return `
-                <div class="bom-section">
-                    ${filteredBOMs.map(bom => renderBOMCard(bom)).join('')}
+                <div style="padding: 1.5rem;">
+                    ${filteredBOMs.map(bom => `
+                        <div class="content-card" style="margin-bottom: 2rem; overflow: visible;">
+                            <div style="padding: 2rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
+                                    <div>
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--forest-800); margin-bottom: 0.5rem;">
+                                            ${bom.bomCode}
+                                        </div>
+                                        ${bom.description ? `<div style="color: var(--neutral-600); margin-bottom: 0.5rem;">${bom.description}</div>` : ''}
+                                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--neutral-500); display: flex; gap: 1.5rem;">
+                                            ${bom.revision ? `<span>Rev: ${bom.revision}</span>` : ''}
+                                            ${bom.createdDate ? `<span>Created: ${bom.createdDate}</span>` : ''}
+                                            ${bom.status ? `<span class="status-badge status-${bom.status.toLowerCase()}">${bom.status}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                ${bom.items.length > 0 ? `
+                                    <div class="table-container">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Alias</th>
+                                                    <th>GB Code</th>
+                                                    <th>Quantity</th>
+                                                    <th>Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${bom.items.map(item => `
+                                                    <tr>
+                                                        <td>${item.ALIAS || item.alias || ''}</td>
+                                                        <td>${item.GBCODE || item.gbcode || ''}</td>
+                                                        <td>${item.QUANTITY || item.quantity || ''}</td>
+                                                        <td>${item.NOTES || item.notes || '-'}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ` : '<p style="color: var(--neutral-500);">No items in this BOM</p>'}
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             `;
         }
 
-        function renderBOMCard(bom) {
-            const statusClass = bom.status.toLowerCase() === 'active' ? 'status-active' : 'status-draft';
-            
+        function renderImportModal() {
+            if (!appData.importData) return '';
+
+            const { bomCode, bomDescription, comparedItems } = appData.importData;
+            const newCount = comparedItems.filter(i => i.status === 'new' && i.selected).length;
+            const conflictCount = comparedItems.filter(i => i.status === 'conflict' && i.selected).length;
+            const skipCount = comparedItems.filter(i => i.status === 'exists').length;
+
             return `
-                <div class="bom-card">
-                    <div class="bom-header">
-                        <div>
-                            <div class="bom-title">${bom.bomCode}</div>
-                            ${bom.description ? `<div class="bom-description">${bom.description}</div>` : ''}
-                            <div class="bom-meta">
-                                ${bom.createdDate ? `
-                                    <div class="meta-item">
-                                        <span class="meta-label">Created:</span>
-                                        <span>${bom.createdDate}</span>
-                                    </div>
-                                ` : ''}
-                                ${bom.status ? `
-                                    <div class="meta-item">
-                                        <span class="status-badge ${statusClass}">${bom.status}</span>
-                                    </div>
-                                ` : ''}
+                <div class="modal-overlay" id="import-modal">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h2>Import BOM: ${bomCode}</h2>
+                            <button class="close-btn" onclick="closeImportModal()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="bom-info">
+                                <div class="bom-info-title">${bomCode}</div>
+                                <div class="bom-info-meta">${bomDescription}</div>
                             </div>
+
+                            <div class="summary-stats">
+                                <div class="stat-card">
+                                    <div class="stat-value">${newCount}</div>
+                                    <div class="stat-label">New Items</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${conflictCount}</div>
+                                    <div class="stat-label">Revision Updates</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${skipCount}</div>
+                                    <div class="stat-label">Existing Items</div>
+                                </div>
+                            </div>
+
+                            ${conflictCount > 0 ? `
+                                <div class="alert alert-warning">
+                                    <span class="alert-icon">⚠️</span>
+                                    <div>
+                                        <strong>Revision Conflicts Detected</strong><br>
+                                        Some items have different revisions than what's in your database. 
+                                        New items will be created with updated revisions, and old revisions will be marked as obsolete.
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <div class="import-section">
+                                <h3>Items to Import</h3>
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th class="checkbox-cell">Select</th>
+                                                <th>Status</th>
+                                                <th>Alias</th>
+                                                <th>Revision</th>
+                                                <th>New GB Code</th>
+                                                <th>Category</th>
+                                                <th>Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${comparedItems.map((item, idx) => `
+                                                <tr>
+                                                    <td class="checkbox-cell">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            ${item.status === 'exists' ? 'disabled' : ''}
+                                                            ${item.selected ? 'checked' : ''}
+                                                            onchange="toggleItemSelection(${idx})"
+                                                        >
+                                                    </td>
+                                                    <td><span class="status-badge status-${item.status}">${item.status}</span></td>
+                                                    <td>${item.alias}</td>
+                                                    <td>
+                                                        ${item.revision}
+                                                        ${item.status === 'conflict' ? `<br><small style="color: var(--neutral-500);">Was: ${item.existingRevision}</small>` : ''}
+                                                    </td>
+                                                    <td>
+                                                        ${item.status === 'exists' ? item.existingGBCode : item.newGBCode}
+                                                        ${item.status === 'conflict' ? `<br><small style="color: var(--neutral-500);">Old: ${item.existingGBCode}</small>` : ''}
+                                                    </td>
+                                                    <td>${item.category}</td>
+                                                    <td>${item.description}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="confirmImport()">
+                                Import BOM and ${newCount + conflictCount} Items
+                            </button>
                         </div>
                     </div>
-                    ${bom.items.length > 0 ? `
-                        <div class="content-card" style="margin: 0;">
-                            <div class="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Alias</th>
-                                            <th>GB Code</th>
-                                            <th>Quantity</th>
-                                            <th>Notes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${bom.items.map(item => `
-                                            <tr>
-                                                <td>${item.ALIAS || item.alias || ''}</td>
-                                                <td>${item.GBCODE || item.gbcode || ''}</td>
-                                                <td>${item.QUANTITY || item.quantity || ''}</td>
-                                                <td>${item.NOTES || item.notes || '-'}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    ` : '<p style="color: var(--neutral-500);">No items in this BOM</p>'}
                 </div>
             `;
         }
 
-        function renderDownloadInstructions() {
-            return `
-                <div class="download-instructions">
-                    <h3>📝 How to Edit Your PLM Data</h3>
-                    <p>This PLM system displays data from your Excel file. To add or modify items and BOMs:</p>
-                    <ol>
-                        <li>Click the "Download Excel" button above to get the current file</li>
-                        <li>Open the file in Excel or Google Sheets and make your changes</li>
-                        <li>Save the file and upload it back to your GitHub repository (replace the old file)</li>
-                        <li>Click "Refresh" here to see your updates</li>
-                    </ol>
-                    <p style="margin-top: 1rem;"><strong>To create new BOMs:</strong> Add a new sheet to the Excel file, name it with your BOM code, add metadata at the top (BOMCODE, DESCRIPTION, CREATED_DATE, STATUS), then add your items starting from row 6 with headers: ALIAS, GBCODE, QUANTITY, NOTES</p>
-                </div>
-            `;
+        // Event handlers
+        function toggleItemSelection(idx) {
+            appData.importData.comparedItems[idx].selected = !appData.importData.comparedItems[idx].selected;
+            render();
         }
 
-        // Event listeners
+        function closeImportModal() {
+            appData.showImportModal = false;
+            appData.importData = null;
+            render();
+        }
+
+        function confirmImport() {
+            const selectedItems = appData.importData.comparedItems.filter(i => i.selected);
+            const wb = generateUpdatedExcel(selectedItems, appData.importData);
+            
+            // Download the updated Excel file
+            XLSX.writeFile(wb, 'plm-database-updated.xlsx');
+            
+            // Show success message
+            alert(`Success! Created ${selectedItems.length} new items and imported BOM ${appData.importData.bomCode}.\n\nThe updated file has been downloaded. Please upload it to your GitHub repository to update the PLM system.`);
+            
+            closeImportModal();
+        }
+
         function attachEventListeners() {
             const searchInput = document.getElementById('search-input');
             if (searchInput) {
@@ -910,15 +1274,28 @@
 
             const refreshBtn = document.getElementById('refresh-btn');
             if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => {
-                    loadExcelFile();
-                });
+                refreshBtn.addEventListener('click', loadExcelFile);
             }
 
             const downloadBtn = document.getElementById('download-btn');
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', () => {
                     window.open(CONFIG.EXCEL_FILE_URL, '_blank');
+                });
+            }
+
+            const importBtn = document.getElementById('import-btn');
+            const fileInput = document.getElementById('bom-file-input');
+            if (importBtn && fileInput) {
+                importBtn.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        handleBOMFileUpload(file);
+                        e.target.value = ''; // Reset input
+                    }
                 });
             }
 
