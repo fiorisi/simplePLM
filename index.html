@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLM System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --forest-900: #0d2818;
+            --forest-800: #1a4d2e;
+            --forest-700: #2d6a4f;
+            --forest-600: #40916c;
+            --forest-500: #52b788;
+            --forest-400: #74c69d;
+            --sage-100: #f8faf9;
+            --sage-200: #e8f3ed;
+            --sage-300: #d4e9e1;
+            --neutral-50: #fafafa;
+            --neutral-100: #f5f5f5;
+            --neutral-200: #e5e5e5;
+            --neutral-400: #a3a3a3;
+            --neutral-600: #525252;
+            --neutral-800: #262626;
+            --neutral-900: #171717;
+            --accent-orange: #fb8500;
+            --accent-blue: #219ebc;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--sage-100) 0%, var(--neutral-50) 100%);
+            color: var(--neutral-800);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--forest-800) 0%, var(--forest-700) 100%);
+            padding: 3rem 2.5rem;
+            border-radius: 24px;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 10px 40px rgba(26, 77, 46, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(82, 183, 136, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            color: var(--sage-200);
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .config-banner {
+            background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
+            border: 2px solid #ffc107;
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.1);
+        }
+
+        .config-banner h3 {
+            color: #856404;
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .config-banner p {
+            color: #856404;
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .config-banner code {
+            background: rgba(133, 100, 4, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: #664d03;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--neutral-600);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .tab:hover {
+            color: var(--forest-700);
+            background: var(--sage-100);
+        }
+
+        .tab.active {
+            color: white;
+            background: linear-gradient(135deg, var(--forest-700) 0%, var(--forest-600) 100%);
+            box-shadow: 0 4px 16px rgba(26, 77, 46, 0.2);
+        }
+
+        .tab-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.2rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .tab:not(.active) .tab-badge {
+            background: var(--sage-200);
+            color: var(--forest-700);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-container {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--neutral-400);
+            font-size: 1.2rem;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3rem;
+            border: 2px solid var(--sage-300);
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--forest-600);
+            box-shadow: 0 0 0 4px rgba(82, 183, 136, 0.1);
+        }
+
+        .btn {
+            padding: 1rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--forest-700) 0%, var(--forest-600) 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--forest-700);
+            border: 2px solid var(--sage-300);
+        }
+
+        .btn-secondary:hover {
+            background: var(--sage-100);
+            border-color: var(--forest-600);
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, #ff9500 100%);
+            color: white;
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: linear-gradient(135deg, var(--forest-800) 0%, var(--forest-700) 100%);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 1.25rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: white;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid var(--sage-200);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--neutral-700);
+        }
+
+        tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: var(--sage-100);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--neutral-600);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--sage-200);
+            border-top-color: var(--forest-600);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: linear-gradient(135deg, #fee 0%, #fdd 100%);
+            border: 2px solid #dc3545;
+            color: #721c24;
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--neutral-600);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--neutral-700);
+        }
+
+        .bom-section {
+            padding: 1.5rem;
+        }
+
+        .bom-card {
+            background: linear-gradient(135deg, white 0%, var(--sage-100) 100%);
+            border: 2px solid var(--sage-300);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .bom-card:hover {
+            border-color: var(--forest-500);
+            box-shadow: 0 8px 24px rgba(26, 77, 46, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .bom-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--sage-300);
+        }
+
+        .bom-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--forest-800);
+            margin-bottom: 0.5rem;
+        }
+
+        .bom-description {
+            font-size: 1rem;
+            color: var(--neutral-600);
+            margin-bottom: 0.25rem;
+        }
+
+        .bom-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--neutral-500);
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: var(--neutral-600);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-draft {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .download-instructions {
+            background: linear-gradient(135deg, var(--sage-100) 0%, white 100%);
+            border: 2px solid var(--forest-400);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .download-instructions h3 {
+            color: var(--forest-800);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .download-instructions p {
+            color: var(--neutral-700);
+            margin-bottom: 0.75rem;
+            line-height: 1.8;
+        }
+
+        .download-instructions ol {
+            margin-left: 1.5rem;
+            color: var(--neutral-700);
+            line-height: 1.8;
+        }
+
+        .download-instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .search-container {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // CONFIGURATION - UPDATE THESE VALUES
+        const CONFIG = {
+            // Replace 'YOUR_USERNAME' with your GitHub username
+            // Replace 'YOUR_REPO' with your repository name
+            EXCEL_FILE_URL: 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/plm-database.xlsx'
+        };
+
+        // Check if configured
+        const isConfigured = !CONFIG.EXCEL_FILE_URL.includes('YOUR_USERNAME');
+
+        let appData = {
+            items: [],
+            boms: [],
+            loading: true,
+            error: null,
+            searchTerm: '',
+            activeTab: 'items'
+        };
+
+        // Load Excel file from GitHub
+        async function loadExcelFile() {
+            try {
+                appData.loading = true;
+                appData.error = null;
+                render();
+
+                const response = await fetch(CONFIG.EXCEL_FILE_URL);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load Excel file. Make sure the URL is correct and the file is accessible.');
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+                // Parse Items sheet
+                if (workbook.SheetNames.includes('Items')) {
+                    const itemsSheet = workbook.Sheets['Items'];
+                    const itemsData = XLSX.utils.sheet_to_json(itemsSheet);
+                    appData.items = itemsData;
+                }
+
+                // Parse BOM sheets (all sheets except Items)
+                appData.boms = [];
+                workbook.SheetNames.forEach(sheetName => {
+                    if (sheetName !== 'Items') {
+                        const bom = parseBOMSheet(workbook.Sheets[sheetName], sheetName);
+                        if (bom) {
+                            appData.boms.push(bom);
+                        }
+                    }
+                });
+
+                appData.loading = false;
+                render();
+            } catch (err) {
+                appData.error = err.message;
+                appData.loading = false;
+                render();
+            }
+        }
+
+        // Parse a BOM sheet
+        function parseBOMSheet(sheet, sheetName) {
+            try {
+                // Convert sheet to array of arrays
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                
+                if (data.length === 0) return null;
+
+                // Extract metadata from top rows
+                const metadata = {};
+                let itemsStartRow = -1;
+
+                for (let i = 0; i < data.length; i++) {
+                    const row = data[i];
+                    
+                    // Check if this is the items header row
+                    if (row[0] && (row[0].toString().toUpperCase() === 'ALIAS' || 
+                                   row[0].toString().toLowerCase() === 'alias')) {
+                        itemsStartRow = i;
+                        break;
+                    }
+
+                    // Otherwise treat as metadata
+                    if (row[0] && row[1]) {
+                        metadata[row[0]] = row[1];
+                    }
+                }
+
+                // Extract BOM items
+                const items = [];
+                if (itemsStartRow >= 0 && itemsStartRow < data.length - 1) {
+                    const headers = data[itemsStartRow].map(h => h ? h.toString() : '');
+                    
+                    for (let i = itemsStartRow + 1; i < data.length; i++) {
+                        const row = data[i];
+                        if (row.length > 0 && row[0]) {
+                            const item = {};
+                            headers.forEach((header, idx) => {
+                                if (header) {
+                                    item[header] = row[idx] || '';
+                                }
+                            });
+                            items.push(item);
+                        }
+                    }
+                }
+
+                return {
+                    sheetName: sheetName,
+                    bomCode: metadata.BOMCODE || sheetName,
+                    description: metadata.DESCRIPTION || '',
+                    createdDate: metadata.CREATED_DATE || '',
+                    status: metadata.STATUS || '',
+                    metadata: metadata,
+                    items: items
+                };
+            } catch (err) {
+                console.error(`Error parsing BOM sheet ${sheetName}:`, err);
+                return null;
+            }
+        }
+
+        // Filter data based on search term
+        function getFilteredItems() {
+            if (!appData.searchTerm) return appData.items;
+            
+            const search = appData.searchTerm.toLowerCase();
+            return appData.items.filter(item => {
+                return Object.values(item).some(value => 
+                    String(value).toLowerCase().includes(search)
+                );
+            });
+        }
+
+        function getFilteredBOMs() {
+            if (!appData.searchTerm) return appData.boms;
+            
+            const search = appData.searchTerm.toLowerCase();
+            return appData.boms.filter(bom => {
+                return bom.bomCode.toLowerCase().includes(search) ||
+                       bom.description.toLowerCase().includes(search);
+            });
+        }
+
+        // Render functions
+        function render() {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div class="app-container">
+                    ${renderHeader()}
+                    ${!isConfigured ? renderConfigBanner() : ''}
+                    ${isConfigured ? renderContent() : ''}
+                </div>
+            `;
+            attachEventListeners();
+        }
+
+        function renderHeader() {
+            return `
+                <header>
+                    <h1>PLM System</h1>
+                    <div class="subtitle">Product Lifecycle Management</div>
+                </header>
+            `;
+        }
+
+        function renderConfigBanner() {
+            return `
+                <div class="config-banner">
+                    <h3>⚙️ Setup Required</h3>
+                    <p>Before you can use the PLM system, you need to configure the Excel file location. Here's what to do:</p>
+                    <p style="margin-top: 1rem;"><strong>Step 1:</strong> Create a new repository on GitHub (can be private)</p>
+                    <p><strong>Step 2:</strong> Upload the <code>plm-database.xlsx</code> file to your repository</p>
+                    <p><strong>Step 3:</strong> Edit the <code>index.html</code> file and update the <code>CONFIG.EXCEL_FILE_URL</code> with your file's URL</p>
+                    <p style="margin-top: 1rem;">The URL should look like: <code>https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/plm-database.xlsx</code></p>
+                    <p style="margin-top: 1rem;">Replace <code>YOUR_USERNAME</code> with your GitHub username and <code>YOUR_REPO</code> with your repository name.</p>
+                </div>
+            `;
+        }
+
+        function renderContent() {
+            if (appData.loading) {
+                return `
+                    <div class="content-card">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading PLM data...</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (appData.error) {
+                return `
+                    <div class="error">
+                        <strong>Error:</strong> ${appData.error}
+                    </div>
+                    ${renderDownloadInstructions()}
+                `;
+            }
+
+            return `
+                ${renderTabs()}
+                ${renderControls()}
+                ${appData.activeTab === 'items' ? renderItemsView() : renderBOMsView()}
+                ${renderDownloadInstructions()}
+            `;
+        }
+
+        function renderTabs() {
+            return `
+                <div class="tabs">
+                    <button class="tab ${appData.activeTab === 'items' ? 'active' : ''}" data-tab="items">
+                        Items <span class="tab-badge">${appData.items.length}</span>
+                    </button>
+                    <button class="tab ${appData.activeTab === 'boms' ? 'active' : ''}" data-tab="boms">
+                        BOMs <span class="tab-badge">${appData.boms.length}</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderControls() {
+            return `
+                <div class="controls">
+                    <div class="search-container">
+                        <span class="search-icon">🔍</span>
+                        <input 
+                            type="text" 
+                            class="search-box" 
+                            placeholder="Search items and BOMs..." 
+                            value="${appData.searchTerm}"
+                            id="search-input"
+                        >
+                    </div>
+                    <button class="btn btn-secondary" id="refresh-btn">
+                        🔄 Refresh
+                    </button>
+                    <button class="btn btn-download" id="download-btn">
+                        📥 Download Excel
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderItemsView() {
+            const filteredItems = getFilteredItems();
+
+            if (filteredItems.length === 0) {
+                return `
+                    <div class="content-card">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📦</div>
+                            <h3>No items found</h3>
+                            <p>Add items to your Excel file to see them here</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const headers = Object.keys(filteredItems[0]);
+
+            return `
+                <div class="content-card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    ${headers.map(h => `<th>${h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredItems.map(item => `
+                                    <tr>
+                                        ${headers.map(h => `<td>${item[h] || ''}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderBOMsView() {
+            const filteredBOMs = getFilteredBOMs();
+
+            if (filteredBOMs.length === 0) {
+                return `
+                    <div class="content-card">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <h3>No BOMs found</h3>
+                            <p>Create BOM sheets in your Excel file to see them here</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="bom-section">
+                    ${filteredBOMs.map(bom => renderBOMCard(bom)).join('')}
+                </div>
+            `;
+        }
+
+        function renderBOMCard(bom) {
+            const statusClass = bom.status.toLowerCase() === 'active' ? 'status-active' : 'status-draft';
+            
+            return `
+                <div class="bom-card">
+                    <div class="bom-header">
+                        <div>
+                            <div class="bom-title">${bom.bomCode}</div>
+                            ${bom.description ? `<div class="bom-description">${bom.description}</div>` : ''}
+                            <div class="bom-meta">
+                                ${bom.createdDate ? `
+                                    <div class="meta-item">
+                                        <span class="meta-label">Created:</span>
+                                        <span>${bom.createdDate}</span>
+                                    </div>
+                                ` : ''}
+                                ${bom.status ? `
+                                    <div class="meta-item">
+                                        <span class="status-badge ${statusClass}">${bom.status}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${bom.items.length > 0 ? `
+                        <div class="content-card" style="margin: 0;">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Alias</th>
+                                            <th>GB Code</th>
+                                            <th>Quantity</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${bom.items.map(item => `
+                                            <tr>
+                                                <td>${item.ALIAS || item.alias || ''}</td>
+                                                <td>${item.GBCODE || item.gbcode || ''}</td>
+                                                <td>${item.QUANTITY || item.quantity || ''}</td>
+                                                <td>${item.NOTES || item.notes || '-'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : '<p style="color: var(--neutral-500);">No items in this BOM</p>'}
+                </div>
+            `;
+        }
+
+        function renderDownloadInstructions() {
+            return `
+                <div class="download-instructions">
+                    <h3>📝 How to Edit Your PLM Data</h3>
+                    <p>This PLM system displays data from your Excel file. To add or modify items and BOMs:</p>
+                    <ol>
+                        <li>Click the "Download Excel" button above to get the current file</li>
+                        <li>Open the file in Excel or Google Sheets and make your changes</li>
+                        <li>Save the file and upload it back to your GitHub repository (replace the old file)</li>
+                        <li>Click "Refresh" here to see your updates</li>
+                    </ol>
+                    <p style="margin-top: 1rem;"><strong>To create new BOMs:</strong> Add a new sheet to the Excel file, name it with your BOM code, add metadata at the top (BOMCODE, DESCRIPTION, CREATED_DATE, STATUS), then add your items starting from row 6 with headers: ALIAS, GBCODE, QUANTITY, NOTES</p>
+                </div>
+            `;
+        }
+
+        // Event listeners
+        function attachEventListeners() {
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    appData.searchTerm = e.target.value;
+                    render();
+                });
+            }
+
+            const refreshBtn = document.getElementById('refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    loadExcelFile();
+                });
+            }
+
+            const downloadBtn = document.getElementById('download-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', () => {
+                    window.open(CONFIG.EXCEL_FILE_URL, '_blank');
+                });
+            }
+
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    appData.activeTab = tab.dataset.tab;
+                    render();
+                });
+            });
+        }
+
+        // Initialize
+        if (isConfigured) {
+            loadExcelFile();
+        } else {
+            appData.loading = false;
+            render();
+        }
+    </script>
+</body>
+</html>
